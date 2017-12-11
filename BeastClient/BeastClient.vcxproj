@@ -117,11 +117,12 @@
   <ItemGroup>
     <ClCompile Include="Client.cpp" />
     <ClCompile Include="Source.cpp" />
-    <ClCompile Include="TCPConnection.cpp" />
+    <ClCompile Include="HttpClient.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
-    <ClInclude Include="TCPConnection.h" />
+    <ClInclude Include="HttpClient.h" />
+    <ClInclude Include="Typedefs.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
