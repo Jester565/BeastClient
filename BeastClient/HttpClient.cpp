@@ -5,7 +5,6 @@ using namespace boost::beast;
 HttpClient::HttpClient(socket_ptr socket, msg_handler msgHandler, disconnect_handler disHandler)
 	:socket(socket), msgHandler(msgHandler), disHandler(disHandler)
 {
-
 }
 
 void HttpClient::start()
@@ -13,8 +12,9 @@ void HttpClient::start()
 	readResponse();
 }
 
-void HttpClient::send(req_ptr req)
+void HttpClient::send(req_ptr req, msg_handler handler)
 {
+	reqInfos.push(std::make_pair((std::string)req->target(), handler));
 	boost::unique_lock<boost::mutex> lock(queueMutex);
 	reqStore.push(req);
 	if (reqStore.size() == 1) {
@@ -75,8 +75,14 @@ void HttpClient::asyncReceiveHandler(const boost::system::error_code & error, un
 	resp->body() = (std::string)req->body();
 	send(resp);
 	*/
-	if (msgHandler != nullptr) {
-		msgHandler(shared_from_this(), resp);
+	std::string target = reqInfos.front().first;
+	msg_handler handler = reqInfos.front().second;
+	reqInfos.pop();
+	if (handler != nullptr) {
+		handler(shared_from_this(), resp, target);
+	}
+	else if (msgHandler != nullptr) {
+		msgHandler(shared_from_this(), resp, target);
 	}
 	else {
 		std::cout << "DEFAULT MESSAGE HANDLER: " << resp << std::endl;

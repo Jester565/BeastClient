@@ -22,5 +22,6 @@ typedef boost::shared_ptr<HttpClient> client_ptr;
 
 typedef std::function<void(socket_ptr)> raw_connect_handler;
 typedef std::function<void(client_ptr)> connect_handler;
-typedef std::function<void(client_ptr, resp_ptr)> msg_handler;
+typedef std::function<void(client_ptr, resp_ptr, const std::string&)> msg_handler;
 typedef std::function<void(client_ptr)> disconnect_handler;
+typedef std::function<void(client_ptr, resp_ptr)> evt_handler;

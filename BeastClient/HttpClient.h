@@ -16,7 +16,7 @@ public:
 
 	void start();
 
-	void send(req_ptr req);
+	void send(req_ptr req, msg_handler handler = nullptr);
 
 	~HttpClient();
 
@@ -35,6 +35,7 @@ private:
 
 	msg_handler msgHandler;
 	disconnect_handler disHandler;
+	std::queue<std::pair<std::string, msg_handler>> reqInfos;
 	std::queue<req_ptr> reqStore;
 	boost::mutex queueMutex;
 };
