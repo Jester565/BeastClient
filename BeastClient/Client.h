@@ -1,46 +1,58 @@
 #pragma once
 #include "Typedefs.h"
-#include <boost/asio.hpp>
+#include <boost/asio/io_service.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/logic/tribool.hpp>
+#include <queue>
 
-class EventManager;
+namespace bcli {
+	class EventManager;
+	class TCPConnector;
 
-class Client : public boost::enable_shared_from_this<Client>
-{
-public:
-	Client();
+	class Client : public boost::enable_shared_from_this<Client>
+	{
+	public:
+		Client(boost::asio::io_service* ioService = nullptr);
 
-	void run(const std::string& ip, const std::string& port);
+		bool connect(const std::string& ip, const std::string& port, int retryDelayMillis = 0, int maxRetries = 0);
 
-	boost::asio::io_service* getIOService() {
-		return ioService;
-	}
+		socket_ptr asyncConnect(const std::string& ip, const std::string& port, int retryDelayMillis = 0, int maxRetries = 0);
 
-	EventManager* getEventManager() {
-		return evtManager;
-	}
+		bool isConnected() {
+			return connected;
+		}
 
-	resp_ptr makeRequest(req_ptr req);
+		resp_ptr send(req_ptr req);
 
-	client_ptr getHttpClient() {
-		return httpClient;
-	}
+		bool asyncSend(req_ptr req, evt_handler handler = nullptr);
 
-	void stop();
+		boost::asio::io_service* getIOService() {
+			return ioService;
+		}
 
-	~Client();
+		boost::shared_ptr<EventManager> getEventManager() {
+			return evtManager;
+		}
 
-private:
-	resp_ptr syncStore;
-	void syncHandler(client_ptr, resp_ptr, const std::string& target);
-	bool connected;
-	EventManager* evtManager;
-	void messageHandler(client_ptr, resp_ptr, const std::string& target);
-	void disconnectHandler(client_ptr);
+		void stop();
+		void shutdown();
 
-	//void resolveHandler(const boost::system::error_code& ec, boost::asio::ip::tcp::resolver::iterator epIter);
-	boost::asio::io_service* ioService;
-	client_ptr httpClient;
-	boost::asio::ip::tcp::resolver* resolver;
-};
+		~Client();
 
+	private:
+		boost::shared_ptr<TCPConnector> tcpConnector;
+		boost::tribool connected;
+
+		void connectHandler(const boost::system::error_code& ec, socket_ptr socket);
+		void syncHandler(client_ptr, const std::string& target, resp_ptr);
+		resp_ptr syncStore;
+		void messageHandler(connection_ptr, const std::string& target, resp_ptr);
+		void disconnectHandler(connection_ptr);
+		boost::shared_ptr<EventManager> evtManager;
+
+		boost::asio::io_service* ioService;
+		connection_ptr httpConnection;
+
+		std::queue<evt_handler> perMsgHandlers;
+	};
+}

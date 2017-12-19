@@ -1,108 +1,127 @@
 #include "Client.h"
-#include "HttpClient.h"
+#include "HttpConnection.h"
 #include "EventManager.h"
+#include "TCPConnector.h"
 #include <boost/bind.hpp>
-#include <iostream>
 #include <boost/make_shared.hpp>
+#include <iostream>
 
 using namespace boost::asio::ip;
-
-Client::Client()
-	:ioService(nullptr), resolver(nullptr), connected(false), syncStore(nullptr)
-{
-	evtManager = new EventManager();
-}
-
-void Client::run(const std::string & ip, const std::string & port)
-{
-	ioService = new boost::asio::io_service();
-	resolver = new tcp::resolver(*ioService);
-	tcp::resolver::query endpoint(ip, port);
-	auto resolveResult = resolver->resolve(endpoint);
-	boost::shared_ptr<tcp::socket> socket = boost::make_shared<tcp::socket>(*ioService);
-	boost::asio::connect(*socket, resolveResult.begin(), resolveResult.end());
-	connected = true;
-	httpClient = boost::shared_ptr<HttpClient>(new HttpClient(socket,
-		(msg_handler)std::bind(&Client::messageHandler, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
-		(disconnect_handler)std::bind(&Client::disconnectHandler, this, std::placeholders::_1)));
-	httpClient->start();
-	evtManager->runConnect(httpClient);
-}
-
-resp_ptr Client::makeRequest(req_ptr req)
-{
-	while (connected && syncStore == nullptr) {
-		httpClient->send(req, std::bind(&Client::syncHandler, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-		ioService->run_one();
+namespace bcli {
+	Client::Client(boost::asio::io_service* ioService)
+		:ioService(ioService), syncStore(nullptr), connected(boost::logic::indeterminate)
+	{
+		if (ioService == nullptr) {
+			ioService = new boost::asio::io_service();
+		}
+		tcpConnector = boost::make_shared<TCPConnector>(ioService, std::bind(&Client::connectHandler, this, std::placeholders::_1, std::placeholders::_2));
+		evtManager = boost::make_shared<EventManager>();
 	}
-	resp_ptr result = syncStore;
-	syncStore = nullptr;
-	return result;
-}
 
-void Client::stop() {
-	resolver->cancel();
-}
-
-Client::~Client()
-{
-	delete ioService;
-	delete resolver;
-}
-
-void Client::syncHandler(client_ptr, resp_ptr resp, const std::string & target)
-{
-	syncStore = resp;
-}
-
-void Client::messageHandler(client_ptr client, resp_ptr resp, const std::string& target)
-{
-	evtManager->runMessage(client, resp, target);
-}
-
-void Client::disconnectHandler(client_ptr client)
-{
-	std::cout << "DISCONNECTED" << std::endl;
-	connected = false;
-	evtManager->runDisconnect(client);
-}
-
-/*
-void Client::resolveHandler(const boost::system::error_code & ec, boost::asio::ip::tcp::resolver::iterator epIter)
-{
-	if (ec) {
-		std::cerr << "Resolver error" << std::endl;
-	}
-	tcp::resolver::iterator epIterEnd;
-	boost::system::error_code connectEC;
-	while (epIter != epIterEnd) {
-		if (!connectEC) {
-			std::cout << "Connected" << std::endl;
-			httpClient = boost::shared_ptr<HttpClient>(new HttpClient(socket,
-				(msg_handler)std::bind(&Client::messageHandler, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
-				(disconnect_handler)std::bind(&Client::disconnectHandler, this, std::placeholders::_1)));
-			httpClient->start();
-			//TEST SEND
-			for (int i = 0; i < 50; i++) {
-				req_ptr req = CreateRequest();
-				req->target("test");
-				req->method(http::verb::post);
-				req->set(http::field::server, "Beast");
-				req->set(http::field::content_type, "text/plain");
-				req->body() = std::to_string(i);
-				httpClient->send(req);
+	bool Client::connect(const std::string & ip, const std::string & port, int retryDelayMillis, int maxRetries)
+	{
+		if (asyncConnect(ip, port, retryDelayMillis, maxRetries)) {
+			while (true) {
+				if (connected || !connected) {
+					return connected;
+				}
+				ioService->run_one();
 			}
-			//TEST SEND DONE
-			return;
 		}
-		if (connectEC.value() != boost::asio::error::host_not_found) {
-			std::cerr << "Resolve Error: " << connectEC.message();
-		}
-		socket->shutdown(tcp::socket::shutdown_both);
-		socket->close();
-		connectEC.clear();
-		epIter++;
+		return false;
 	}
-	std::cerr << "Could not connect" << std::endl;
+
+	socket_ptr Client::asyncConnect(const std::string & ip, const std::string & port, int retryDelayMillis, int maxRetries)
+	{
+		if (connected) {
+			std::cerr << "Cannot connect client when already connected" << std::endl;
+			return nullptr;
+		}
+		connected = boost::logic::indeterminate;
+		return tcpConnector->run(ip, port, std::chrono::milliseconds(retryDelayMillis), maxRetries);
+	}
+
+	resp_ptr Client::send(req_ptr req)
+	{
+		if (asyncSend(req, std::bind(&Client::syncHandler, shared_from_this(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3))) {
+			while (connected && syncStore == nullptr) {
+				ioService->run_one();
+			}
+			resp_ptr result = syncStore;
+			syncStore = nullptr;
+			return result;
+		}
+		return nullptr;
+	}
+
+	bool Client::asyncSend(req_ptr req, evt_handler handler)
+	{
+		if (connected) {
+			perMsgHandlers.push(handler);
+			httpConnection->send(req);
+			return true;
+		}
+		return false;
+	}
+
+	void Client::stop() {
+		connected = false;
+		while (!perMsgHandlers.empty()) {
+			perMsgHandlers.pop();
+		}
+		tcpConnector->cancel();
+		if (httpConnection != nullptr) {
+			httpConnection->stop();
+			httpConnection = nullptr;
+		}
+	}
+
+	Client::~Client()
+	{
+		delete ioService;
+		ioService = nullptr;
+	}
+
+	void Client::syncHandler(client_ptr, const std::string& target, resp_ptr resp)
+	{
+		syncStore = resp;
+	}
+
+	void Client::connectHandler(const boost::system::error_code & ec, socket_ptr socket)
+	{
+		if (ec) {
+			connected = false;
+			std::cerr << "Connect ERROR: " << ec << std::endl;
+		}
+		else {
+			connected = true;
+			httpConnection = boost::make_shared<HttpConnection>(socket,
+				(msg_handler)std::bind(&Client::messageHandler, shared_from_this(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
+				(disconnect_handler)std::bind(&Client::disconnectHandler, shared_from_this(), std::placeholders::_1));
+			httpConnection->run();
+		}
+		evtManager->runConnect(shared_from_this());
+	}
+
+	void Client::messageHandler(connection_ptr connection, const std::string& target, resp_ptr resp)
+	{
+		evt_handler handler = perMsgHandlers.front();
+		perMsgHandlers.pop();
+		if (handler != nullptr) {
+			handler(shared_from_this(), target, resp);
+		}
+		evtManager->runMessage(target, shared_from_this(), resp);
+	}
+
+	void Client::disconnectHandler(connection_ptr connection)
+	{
+		std::cout << "D Handler" << std::endl;
+		stop();
+		evtManager->runDisconnect(shared_from_this());
+	}
+
+	void Client::shutdown() {
+		stop();
+		tcpConnector->setConnectHandler(nullptr);
+	}
 }
-*/

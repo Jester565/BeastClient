@@ -5,49 +5,52 @@
 #include <string>
 #include <queue>
 
-class EventHandler
-{
-public:
-	EventHandler(const std::string& resource, evt_handler handler)
-		:resource(resource), handler(handler)
+namespace bcli {
+	class EventManager;
+
+	class EventHandler
 	{
-	}
+	public:
+		EventHandler(boost::shared_ptr<EventManager> evtManager, const std::string& resource, evt_handler handler);
 
-	std::string getResource() {
-		return resource;
-	}
+		std::string getResource() {
+			return resource;
+		}
 
-	evt_handler getHandler() {
-		return handler;
-	}
+		evt_handler getHandler() {
+			return handler;
+		}
 
-private:
-	std::string resource;
-	evt_handler handler;
-};
+		~EventHandler();
 
-class EventManager
-{
-public:
-	EventManager();
+	private:
+		boost::shared_ptr<EventManager> evtManager;
+		std::string resource;
+		evt_handler handler;
+	};
 
-	void runConnect(client_ptr);
-	void runMessage(client_ptr, resp_ptr, const std::string& target);
-	void runDisconnect(client_ptr);
+	class EventManager
+	{
+	public:
+		EventManager();
 
-	void runEvent(const std::string& resource, client_ptr, resp_ptr);
+		void runConnect(client_ptr);
+		void runMessage(const std::string& target, client_ptr, resp_ptr);
+		void runDisconnect(client_ptr);
 
-	void addEventHandler(EventHandler* evtHandler);
+		void runEvent(const std::string& resource, client_ptr, resp_ptr);
 
-	void removeEventHandler(EventHandler* evtHandler);
+		void addEventHandler(EventHandler* evtHandler);
 
-	std::queue<std::pair<std::string, resp_ptr>> unHandledMessages;
+		void removeEventHandler(EventHandler* evtHandler);
 
-	~EventManager();
+		std::queue<std::pair<std::string, resp_ptr>> unHandledMessages;
 
-private:
-	void onMessageHandlerNotFound(client_ptr, resp_ptr, const std::string& target);
+		~EventManager();
 
-	std::unordered_map<std::string, std::unordered_set<EventHandler*>> eventHandlers;
-};
+	private:
+		void onMessageHandlerNotFound(const std::string& target, client_ptr, resp_ptr);
 
+		std::unordered_map<std::string, std::unordered_set<EventHandler*>> eventHandlers;
+	};
+}

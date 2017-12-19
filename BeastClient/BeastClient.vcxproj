@@ -70,7 +70,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>D:\boost_1_66_0_b1\boost_1_66_0;C:\Users\ajcra\Downloads\rapidjson-master\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\ajcra\Downloads\rapidjson-master\include;D:\boost_1_66_0_b1\boost_1_66_0;$(IncludePath)</IncludePath>
     <LibraryPath>D:\boost_1_66_0_b1\boost_1_66_0\stage\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -116,14 +116,21 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Client.cpp" />
+    <ClCompile Include="Discoverer.cpp" />
     <ClCompile Include="EventManager.cpp" />
+    <ClCompile Include="Service.cpp" />
     <ClCompile Include="Source.cpp" />
-    <ClCompile Include="HttpClient.cpp" />
+    <ClCompile Include="HttpConnection.cpp" />
+    <ClCompile Include="TCPConnector.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
+    <ClInclude Include="Condvar.h" />
+    <ClInclude Include="Discoverer.h" />
     <ClInclude Include="EventManager.h" />
-    <ClInclude Include="HttpClient.h" />
+    <ClInclude Include="HttpConnection.h" />
+    <ClInclude Include="Service.h" />
+    <ClInclude Include="TCPConnector.h" />
     <ClInclude Include="Typedefs.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
