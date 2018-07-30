@@ -3,6 +3,7 @@
 #include <boost/beast/http/message.hpp>
 #include <boost/beast/http/string_body.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl/stream.hpp>
 #include <boost/make_shared.hpp>
 #include <functional>
 
@@ -25,7 +26,8 @@ namespace bcli {
 	typedef boost::shared_ptr<Client> client_ptr;
 	typedef boost::shared_ptr<HttpConnection> connection_ptr;
 
-	typedef std::function<void(const boost::system::error_code & err, socket_ptr)> connect_handler;
+	typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket>> ssl_socket;
+	typedef std::function<void(const boost::system::error_code & err, ssl_socket)> connect_handler;
 	typedef std::function<void(connection_ptr, const std::string&, resp_ptr)> msg_handler;
 	typedef std::function<void(connection_ptr)> disconnect_handler;
 	typedef std::function<void(client_ptr, const std::string&, resp_ptr)> evt_handler;

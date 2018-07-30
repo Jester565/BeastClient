@@ -8,13 +8,26 @@
 
 using namespace boost::asio::ip;
 namespace bcli {
-	Client::Client(boost::asio::io_service* ioService)
+	Client::Client(boost::asio::io_service* ioService, const std::string& certFile, const std::string& keyFile, const std::string& verifyPath)
 		:ioService(ioService), syncStore(nullptr), connected(boost::logic::indeterminate)
 	{
 		if (ioService == nullptr) {
 			ioService = new boost::asio::io_service();
 		}
-		tcpConnector = boost::make_shared<TCPConnector>(ioService, std::bind(&Client::connectHandler, this, std::placeholders::_1, std::placeholders::_2));
+		sslContext = boost::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::sslv23_client);
+		sslContext->set_options(boost::asio::ssl::context::default_workarounds
+			| boost::asio::ssl::context::single_dh_use);
+		try {
+			sslContext->use_certificate_chain_file(certFile);
+			sslContext->use_private_key_file(keyFile, boost::asio::ssl::context::pem);
+			sslContext->set_verify_mode(boost::asio::ssl::verify_peer);
+			sslContext->load_verify_file(verifyPath);
+		}
+		catch (std::exception& ex) {
+			std::cerr << "ERROR WHEN CREATING SSL CONTEXT: " << ex.what() << std::endl;
+		}
+
+		tcpConnector = boost::make_shared<TCPConnector>(ioService, sslContext, std::bind(&Client::connectHandler, this, std::placeholders::_1, std::placeholders::_2));
 		evtManager = boost::make_shared<EventManager>();
 	}
 
@@ -31,7 +44,7 @@ namespace bcli {
 		return false;
 	}
 
-	socket_ptr Client::asyncConnect(const std::string & ip, const std::string & port, int retryDelayMillis, int maxRetries)
+	ssl_socket Client::asyncConnect(const std::string & ip, const std::string & port, int retryDelayMillis, int maxRetries)
 	{
 		if (connected) {
 			std::cerr << "Cannot connect client when already connected" << std::endl;
@@ -87,7 +100,7 @@ namespace bcli {
 		syncStore = resp;
 	}
 
-	void Client::connectHandler(const boost::system::error_code & ec, socket_ptr socket)
+	void Client::connectHandler(const boost::system::error_code & ec, ssl_socket socket)
 	{
 		if (ec) {
 			connected = false;

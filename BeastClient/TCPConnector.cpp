@@ -6,18 +6,18 @@
 using namespace boost::asio::ip;
 
 namespace bcli {
-	TCPConnector::TCPConnector(boost::asio::io_service * ioService, connect_handler conHandler, std::chrono::milliseconds retryDelay, int numRetries)
-		:connectHandler(conHandler), ioService(ioService), running(false), retryRunner(nullptr)
+	TCPConnector::TCPConnector(boost::asio::io_service * ioService, boost::shared_ptr<boost::asio::ssl::context> sslContext, connect_handler conHandler, std::chrono::milliseconds retryDelay, int numRetries)
+		:connectHandler(conHandler), sslContext(sslContext), ioService(ioService), running(false), retryRunner(nullptr)
 	{
 		resolver = new tcp::resolver(*ioService);
 		setRetries(retryDelay, numRetries);
 	}
 
-	socket_ptr TCPConnector::run(const std::string & host, const std::string & port)
+	ssl_socket TCPConnector::run(const std::string & host, const std::string & port)
 	{
 		if (!running) {
 			running = true;
-			socket = boost::make_shared<tcp::socket>(*ioService);
+			socket = boost::make_shared<boost::asio::ssl::stream<boost::asio::ip::tcp::socket>>(*ioService, *sslContext);
 			if (endpoint != nullptr) {
 				delete endpoint;
 				endpoint = nullptr;
@@ -29,7 +29,7 @@ namespace bcli {
 		std::cerr << "Cannot run while TCPConnector already running!" << std::endl;
 		return nullptr;
 	}
-	socket_ptr TCPConnector::run(const std::string & host, const std::string & port, std::chrono::milliseconds retryDelay, int numRetries)
+	ssl_socket TCPConnector::run(const std::string & host, const std::string & port, std::chrono::milliseconds retryDelay, int numRetries)
 	{
 		setRetries(retryDelay, numRetries);
 		return run(host, port);
@@ -53,9 +53,9 @@ namespace bcli {
 		resolver->cancel();
 		if (running && socket != nullptr) {
 			boost::system::error_code ec;
-			socket->shutdown(tcp::socket::shutdown_both, ec);
+			socket->lowest_layer().shutdown(tcp::socket::shutdown_both, ec);
 			std::cout << "TCP Connect close " << ec << std::endl;
-			socket->close();
+			socket->lowest_layer().close();
 		}
 		//socket->cancel();
 	}
@@ -92,7 +92,7 @@ namespace bcli {
 			}
 			return;
 		}
-		socket->async_connect(*iterator, boost::bind(&TCPConnector::handleConnect, shared_from_this(), boost::asio::placeholders::error, ++iterator));
+		socket->lowest_layer().async_connect(*iterator, boost::bind(&TCPConnector::handleConnect, shared_from_this(), boost::asio::placeholders::error, ++iterator));
 	}
 
 	void TCPConnector::handleConnect(const boost::system::error_code & err, boost::asio::ip::tcp::resolver::iterator iterator)
@@ -103,8 +103,8 @@ namespace bcli {
 			}
 			//Try the next possible endpoint
 			if (iterator != tcp::resolver::iterator()) {
-				socket->close();
-				socket->async_connect(*iterator, boost::bind(&TCPConnector::handleConnect, shared_from_this(), boost::asio::placeholders::error, ++iterator));
+				socket->lowest_layer().close();
+				socket->lowest_layer().async_connect(*iterator, boost::bind(&TCPConnector::handleConnect, shared_from_this(), boost::asio::placeholders::error, ++iterator));
 				return;
 			}
 			//We've tried all connections wait to retry

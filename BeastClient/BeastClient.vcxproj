@@ -70,8 +70,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>C:\Users\ajcra\Downloads\rapidjson-master\include;D:\boost_1_66_0_b1\boost_1_66_0;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\boost_1_66_0_b1\boost_1_66_0\stage\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Program Files\OpenSSL\include;C:\Users\ajcra\Desktop\c++\libs\rapidjson\include;C:\Users\ajcra\Desktop\c++\libs\boost_1_66_0;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Program Files\OpenSSL\lib;C:\Users\ajcra\Desktop\c++\libs\boost_1_66_0\stage\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -111,12 +111,11 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>libboost_system-vc141-mt-x64-1_66.lib;libboost_thread-vc141-mt-x64-1_66.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libboost_system-vc141-mt-x64-1_66.lib;libboost_thread-vc141-mt-x64-1_66.lib;libcrypto.lib;libssl.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Client.cpp" />
-    <ClCompile Include="Discoverer.cpp" />
     <ClCompile Include="EventManager.cpp" />
     <ClCompile Include="Service.cpp" />
     <ClCompile Include="Source.cpp" />
@@ -126,7 +125,6 @@
   <ItemGroup>
     <ClInclude Include="Client.h" />
     <ClInclude Include="Condvar.h" />
-    <ClInclude Include="Discoverer.h" />
     <ClInclude Include="EventManager.h" />
     <ClInclude Include="HttpConnection.h" />
     <ClInclude Include="Service.h" />

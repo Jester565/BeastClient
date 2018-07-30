@@ -2,13 +2,12 @@
 #include <boost/make_shared.hpp>
 #include "Client.h"
 #include "EventManager.h"
-#include "Discoverer.h"
 #include <iostream>
 #include <boost/beast.hpp>
 
 using namespace bcli;
 
-/*
+
 void connectHandler(client_ptr client, const std::string& target, resp_ptr resp) {
 	if (client->isConnected()) {
 		std::cout << "Connected" << std::endl;
@@ -35,31 +34,17 @@ void testHandler(client_ptr client, const std::string& target, resp_ptr resp) {
 }
 
 int main() {
-	client_ptr client = boost::make_shared<Client>();
-	EventHandler conHandler(client->getEventManager(), "connect", std::bind(&connectHandler, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+	boost::asio::io_service* ioService = new boost::asio::io_service();
+	client_ptr client = boost::make_shared<Client>(ioService, 
+		"C:/Users/ajcra/Desktop/north/ssl/client.crt",
+		"C:/Users/ajcra/Desktop/north/ssl/client.key",
+		"C:/Users/ajcra/Desktop/north/ssl/rootCA.crt");
+	//EventHandler conHandler(client->getEventManager(), "connect", std::bind(&connectHandler, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 	EventHandler disHandler(client->getEventManager(), "disconnect", std::bind(&disconnectHandler, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 	EventHandler handler(client->getEventManager(), "alex", std::bind(&testHandler, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-	client->asyncConnect("localhost", "5650", 2000, 3);
+	client->asyncConnect("localhost", "5600", 2000, 3);
 	
 	while (true) {
 		client->getIOService()->run();
-	}
-}
-*/
-
-req_ptr serHandler(rapidjson::Document& json) {
-	std::cout << "HANDLER" << std::endl;
-	return nullptr;
-}
-
-int main() {
-	Discoverer discoverer("localhost", "8500");
-	Service service;
-	service.setName("alex");
-	service.setAddress("localhost");
-	service.setPort("8500");
-	discoverer.getService("alex", std::bind(&serHandler, std::placeholders::_1));
-	while (true) {
-		discoverer.getIOService()->run();
 	}
 }

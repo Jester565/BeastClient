@@ -3,18 +3,19 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <iostream>
+#include <boost/lexical_cast.hpp>
 
 using namespace boost::beast;
 
 namespace bcli {
-	HttpConnection::HttpConnection(socket_ptr socket, msg_handler msgHandler, disconnect_handler disHandler)
+	HttpConnection::HttpConnection(ssl_socket socket, msg_handler msgHandler, disconnect_handler disHandler)
 		:socket(socket), msgHandler(msgHandler), disHandler(disHandler)
 	{
 	}
 
 	void HttpConnection::run()
 	{
-		readResponse();
+		socket->async_handshake(boost::asio::ssl::stream_base::client, boost::bind(&HttpConnection::asyncHandshakeHandler, shared_from_this(), boost::asio::placeholders::error));
 	}
 
 	void HttpConnection::send(req_ptr req)
@@ -30,9 +31,9 @@ namespace bcli {
 	void HttpConnection::stop()
 	{
 		boost::system::error_code ec;
-		socket->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+		socket->lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
 		std::cout << "Stop err: " << ec << std::endl;
-		socket->close();
+		socket->lowest_layer().close();
 	}
 
 	HttpConnection::~HttpConnection()
@@ -56,6 +57,29 @@ namespace bcli {
 		resp = CreateResponse();
 		http::async_read(*socket, buffer, *resp,
 			boost::bind(&HttpConnection::asyncReceiveHandler, shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+	}
+
+	void HttpConnection::asyncHandshakeHandler(const boost::system::error_code& error) {
+		if (!error)
+		{
+			std::cout << "SSL Handshake Success!" << std::endl;
+			readResponse();
+		}
+		else
+		{
+			std::cerr << "Error occured in SSL Handshake: " << error.message() << std::endl;
+			std::string hrerr;
+			hrerr += boost::lexical_cast<std::string>(ERR_GET_LIB(error.value()));
+			hrerr += ", ";
+			hrerr += boost::lexical_cast<std::string>(ERR_GET_FUNC(error.value()));
+			hrerr += ", ";
+			hrerr += boost::lexical_cast<std::string>(ERR_GET_REASON(error.value()));
+			hrerr += ", ";
+			char buf[128];
+			ERR_error_string_n(error.value(), buf, 128);
+			hrerr += buf;
+			std::cerr << "Human Readable Error Version: " << hrerr << std::endl;
+		}
 	}
 
 	void HttpConnection::asyncReceiveHandler(const boost::system::error_code & error, unsigned int nBytes)

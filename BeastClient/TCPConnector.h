@@ -9,10 +9,10 @@ namespace bcli {
 	class TCPConnector : public boost::enable_shared_from_this<TCPConnector>
 	{
 	public:
-		TCPConnector(boost::asio::io_service* ioService, connect_handler, std::chrono::milliseconds retryDelay = std::chrono::milliseconds(0), int numRetries = 0);
+		TCPConnector(boost::asio::io_service* ioService, boost::shared_ptr<boost::asio::ssl::context> sslContext, connect_handler, std::chrono::milliseconds retryDelay = std::chrono::milliseconds(0), int numRetries = 0);
 
-		socket_ptr run(const std::string& host, const std::string& port);
-		socket_ptr run(const std::string& host, const std::string& port, std::chrono::milliseconds retryDelay, int numRetries);
+		ssl_socket run(const std::string& host, const std::string& port);
+		ssl_socket run(const std::string& host, const std::string& port, std::chrono::milliseconds retryDelay, int numRetries);
 
 		void setRetries(std::chrono::milliseconds retryDelay, int numRetries);
 		void setConnectHandler(connect_handler handler) {
@@ -27,6 +27,7 @@ namespace bcli {
 		void handleResolve(const boost::system::error_code & err, boost::asio::ip::tcp::resolver::iterator iterator);
 		void handleConnect(const boost::system::error_code & err, boost::asio::ip::tcp::resolver::iterator iterator);
 
+		boost::shared_ptr<boost::asio::ssl::context> sslContext;
 		connect_handler connectHandler;
 		bool running;
 
@@ -37,7 +38,7 @@ namespace bcli {
 		int maxRetries;
 		int retryCount;
 
-		socket_ptr socket;
+		ssl_socket socket;
 		boost::asio::io_service* ioService;
 		boost::asio::ip::tcp::resolver* resolver;
 		boost::asio::ip::tcp::resolver::query* endpoint;

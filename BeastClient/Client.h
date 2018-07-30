@@ -12,11 +12,11 @@ namespace bcli {
 	class Client : public boost::enable_shared_from_this<Client>
 	{
 	public:
-		Client(boost::asio::io_service* ioService = nullptr);
+		Client(boost::asio::io_service* ioService, const std::string& certFile, const std::string& keyFile, const std::string& verifyPath);
 
 		bool connect(const std::string& ip, const std::string& port, int retryDelayMillis = 0, int maxRetries = 0);
 
-		socket_ptr asyncConnect(const std::string& ip, const std::string& port, int retryDelayMillis = 0, int maxRetries = 0);
+		ssl_socket asyncConnect(const std::string& ip, const std::string& port, int retryDelayMillis = 0, int maxRetries = 0);
 
 		bool isConnected() {
 			return connected;
@@ -40,10 +40,11 @@ namespace bcli {
 		~Client();
 
 	private:
+		boost::shared_ptr<boost::asio::ssl::context> sslContext;
 		boost::shared_ptr<TCPConnector> tcpConnector;
 		boost::tribool connected;
 
-		void connectHandler(const boost::system::error_code& ec, socket_ptr socket);
+		void connectHandler(const boost::system::error_code& ec, ssl_socket socket);
 		void syncHandler(client_ptr, const std::string& target, resp_ptr);
 		resp_ptr syncStore;
 		void messageHandler(connection_ptr, const std::string& target, resp_ptr);

@@ -33,9 +33,6 @@
     <ClCompile Include="TCPConnector.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Discoverer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h">
@@ -57,9 +54,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Condvar.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Discoverer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

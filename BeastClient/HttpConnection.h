@@ -11,7 +11,7 @@ namespace bcli {
 	class HttpConnection : public boost::enable_shared_from_this<HttpConnection>
 	{
 	public:
-		HttpConnection(socket_ptr socket, msg_handler msgHandler = nullptr, disconnect_handler disHandler = nullptr);
+		HttpConnection(ssl_socket socket, msg_handler msgHandler = nullptr, disconnect_handler disHandler = nullptr);
 
 		void run();
 		void send(req_ptr req);
@@ -23,9 +23,10 @@ namespace bcli {
 		void sendNoQueue(req_ptr req);
 
 		void readResponse();
+		void asyncHandshakeHandler(const boost::system::error_code& error);
 		void asyncReceiveHandler(const boost::system::error_code& error, unsigned int nBytes);
 		void asyncSendHandler(const boost::system::error_code& error, unsigned int nBytes, bool close);
-		socket_ptr socket;
+		ssl_socket socket;
 
 		boost::beast::flat_buffer buffer;
 		resp_ptr resp;
