@@ -17,4 +17,4 @@ If cmake can't find Boost you can specify your boost location in the cmake comma
 cmake -DBoost_INCLUDE_DIRS="/my/boost_1_66_0" -DBoost_LIBRARY_DIRS="/my/boost_1_66_0/stage/lib" ../
 ```
 
-On windows, this project expects a static boost libraries with MT linking.
+On windows, this project expects static boost libraries with MT linking.
